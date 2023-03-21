@@ -1,0 +1,133 @@
+using System.Collections.Generic;
+using System.Data.SqlClient;
+
+class DatabaseLayer
+{
+    private string connectionString;
+
+    public DatabaseLayer(string connectionString)
+    {
+        this.connectionString = connectionString;
+    }
+
+    public int GetCustomerCount()
+    {
+        int count = 0;
+
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+
+            SqlCommand command = new SqlCommand("SELECT COUNT(*) FROM Customers", connection);
+
+            count = (int)command.ExecuteScalar();
+        }
+
+        return count;
+    }
+
+    public List<string> GetCustomerLastNames()
+    {
+        List<string> lastNames = new List<string>();
+
+        using (SqlConnection connection = new SqlConnection(connectionString))
+        {
+            connection.Open();
+
+            SqlCommand command = new SqlCommand("SELECT LastName FROM Customers", connection);
+
+            SqlDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                string lastName = reader.GetString(0);
+                lastNames.Add(lastName);
+            }
+        }
+
+        return lastNames;
+    }
+}
+
+using System.Collections.Generic;
+
+class BusinessLayer
+{
+    private DatabaseLayer database;
+
+    public BusinessLayer(DatabaseLayer database)
+    {
+        this.database = database;
+    }
+
+    public int GetCustomerCount()
+    {
+        return database.GetCustomerCount();
+    }
+
+    public List<string> GetCustomerNames()
+    {
+        List<string> names = new List<string>();
+
+        List<string> lastNames = database.GetCustomerLastNames();
+
+        foreach (string lastName in lastNames)
+        {
+            string[] parts = lastName.Split(',');
+            string name = parts[1].Trim() + " " + parts[0].Trim();
+            names.Add(name);
+        }
+
+        return names;
+    }
+}
+
+
+using System;
+using System.Windows.Forms;
+
+class GUI : Form
+{
+    private BusinessLayer business;
+
+    private Label countLabel;
+    private ListBox nameList;
+
+    public GUI(BusinessLayer business)
+    {
+        this.business = business;
+
+        this.Text = "Customer List";
+
+        countLabel = new Label();
+        countLabel.Text = "Number of customers: " + business.GetCustomerCount();
+        countLabel.Location = new System.Drawing.Point(10, 10);
+        countLabel.AutoSize = true;
+        this.Controls.Add(countLabel);
+
+        nameList = new ListBox();
+        nameList.Location = new System.Drawing.Point(10, 30);
+        nameList.Size = new System.Drawing.Size(200, 200);
+        foreach (string name in business.GetCustomerNames())
+        {
+            nameList.Items.Add(name);
+        }
+        this.Controls.Add(nameList);
+    }
+}
+
+
+using System;
+
+class Program
+{
+    static void Main()
+    {
+        string connectionString = "Your connection string";
+        DatabaseLayer database = new DatabaseLayer(connectionString);
+        BusinessLayer business = new BusinessLayer(database);
+        GUI gui = new GUI(business);
+        Application.Run(gui);
+    }
+}
+
